@@ -7,6 +7,10 @@ import sys
 from operator import itemgetter
 
 class ScoreSchemeParams():
+    '''
+    ScoreSchemeParams instance will default to match, mismatch and gap value
+    if there is no value inputs indicated in the command
+    '''
     def __init__(self, match=4, mismatch=-2, gap=-2):
         self.match = match
         self.mismatch = mismatch
@@ -18,14 +22,21 @@ class ScoreSchemeParams():
         else:
             return self.match
 
-
-def setAlignmentMatrix(rows, columns, gap):
+def createEmptyMatrix(rows, cols, default_value):
+    '''
+    Initiate an empty matrix with rows and columns equivalent 
+    to both input sequence length
+    '''
     alignmentMatrix = []
     for i in range(len(rows)+1):
         subMatrix = []
-        for j in range(len(columns)+1):
-            subMatrix.append(0)
+        for j in range(len(cols)+1):
+            subMatrix.append(default_value)
         alignmentMatrix.append(subMatrix)
+    return alignmentMatrix
+
+def setAlignmentMatrix(rows, columns, gap):
+    alignmentMatrix = createEmptyMatrix(rows, columns, 0)
 
     for j in range(1,len(columns)+1):
         alignmentMatrix[0][j] = j * gap
@@ -35,27 +46,26 @@ def setAlignmentMatrix(rows, columns, gap):
     return alignmentMatrix
 
 def setTraceBackMatrix(rows, columns):
-	matrix = []
-	for i in range(len(rows)+1):
-		subMatrix = []
-		for j in range(1, len(columns)+1):
-			subMatrix.append('0')
-		matrix.append(subMatrix)
+	alignmentMatrix = createEmptyMatrix(rows, columns, '0')
 
 	for j in range(1,len(columns)+1):
-		matrix[0][j] = 'LEFT'
+		alignmentMatrix[0][j] = 'LEFT'
 	for i in range(1,len(rows)+1):
-		matrix[i][0] = 'TOP'
-	matrix[0][0] = 'DONE'
-	return matrix
+		alignmentMatrix[i][0] = 'TOP'
+	alignmentMatrix[0][0] = 'DONE'
+	return alignmentMatrix
 
 
 def calculateGlobalAlignment(sequence_a, sequence_b, score):
+    '''
+    Initialize an aligment matrix to calculate score and
+    a tracing matrix to keep track of the path to (0, 0) once completed
+    '''
     alignment_matrix = setAlignmentMatrix(sequence_a, sequence_b, score.gap)
     traceBack = setTraceBackMatrix(sequence_a, sequence_b)
 
-    for i in range(1,len(sequence_a)+1):
-        for j in range(1,len(sequence_b)+1):
+    for i in range(1, len(sequence_a)+1):
+        for j in range(1, len(sequence_b)+1):
             left = alignment_matrix[i][j-1] + score.gap
             up = alignment_matrix[i-1][j] + score.gap
             diag = alignment_matrix[i-1][j-1] + score.checkMatchedSequences(sequence_a[i-1],sequence_b[j-1])
@@ -70,29 +80,28 @@ def calculateGlobalAlignment(sequence_a, sequence_b, score):
                 traceBack[i][j] = 'DIAGONAL'
     return traceBack
 
-def getAlignedSequences(sequence_a, sequence_b, traceBack):
-	xSeq = []
-	ySeq = []
+def getGlobalSequenceAlignments(sequence_a, sequence_b, traceBack):
+	rowOutput = []
+	colOutput = []
 	i = len(sequence_a)
 	j = len(sequence_b)
-	while(i > 0 or j > 0):
+	while i > 0 or j > 0:
 		if traceBack[i][j] == 'DIAGONAL':
-			xSeq.append(sequence_a[i-1])
-			ySeq.append(sequence_b[j-1])
-			i = i-1
-			j = j-1
+			rowOutput.append(sequence_a[i-1])
+			colOutput.append(sequence_b[j-1])
+			i -= 1
+			j -= 1
 		elif traceBack[i][j] == 'LEFT':
-			xSeq.append('-')
-			ySeq.append(sequence_b[j-1])
-			j = j-1
+			rowOutput.append('-')
+			colOutput.append(sequence_b[j-1])
+			j -= 1
 		elif traceBack[i][j] == 'TOP':
-			# Up holds true when '-' is added from y string and x[j-1] from x string
-			xSeq.append(sequence_a[i-1])
-			ySeq.append('-')
-			i = i-1
+			rowOutput.append(sequence_a[i-1])
+			colOutput.append('-')
+			i -= 1
 		elif traceBack[i][j] == 'DONE':
 			break
-	return xSeq,ySeq
+	return rowOutput,colOutput
 
 def printSequence(sequence):
     output_string = ""
@@ -127,7 +136,7 @@ def main(argv):
     
     traceBack = calculateGlobalAlignment(sequence_A, sequence_B, score)
 
-    alignment_a, alignment_b = getAlignedSequences(sequence_A, sequence_B,traceBack)
+    alignment_a, alignment_b = getGlobalSequenceAlignments(sequence_A, sequence_B, traceBack)
 
     print(printSequence(alignment_b))
     print(printSequence(alignment_a))
