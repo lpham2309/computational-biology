@@ -28,9 +28,9 @@ def createEmptyMatrix(rows, cols, default_value):
     to both input sequence length
     '''
     alignmentMatrix = []
-    for i in range(len(rows)+1):
+    for i in range(len(rows) + 1):
         subMatrix = []
-        for j in range(len(cols)+1):
+        for j in range(len(cols) + 1):
             subMatrix.append(default_value)
         alignmentMatrix.append(subMatrix)
     return alignmentMatrix
@@ -38,7 +38,7 @@ def createEmptyMatrix(rows, cols, default_value):
 def setAlignmentMatrix(rows, columns, gap):
     alignmentMatrix = createEmptyMatrix(rows, columns, 0)
 
-    for j in range(1,len(columns)+1):
+    for j in range(1,len(columns) + 1):
         alignmentMatrix[0][j] = j * gap
     for i in range(1,len(rows)+1):
         alignmentMatrix[i][0] = i * gap
@@ -48,11 +48,11 @@ def setAlignmentMatrix(rows, columns, gap):
 def setTraceBackMatrix(rows, columns):
 	alignmentMatrix = createEmptyMatrix(rows, columns, '0')
 
-	for j in range(1,len(columns)+1):
+	for j in range(1, len(columns) + 1):
 		alignmentMatrix[0][j] = 'LEFT'
-	for i in range(1,len(rows)+1):
+	for i in range(1, len(rows) + 1):
 		alignmentMatrix[i][0] = 'TOP'
-	alignmentMatrix[0][0] = 'DONE'
+	alignmentMatrix[0][0] = 'COMPLETED'
 	return alignmentMatrix
 
 
@@ -64,44 +64,44 @@ def calculateGlobalAlignment(sequence_a, sequence_b, score):
     alignment_matrix = setAlignmentMatrix(sequence_a, sequence_b, score.gap)
     traceBack = setTraceBackMatrix(sequence_a, sequence_b)
 
-    for i in range(1, len(sequence_a)+1):
-        for j in range(1, len(sequence_b)+1):
-            left = alignment_matrix[i][j-1] + score.gap
-            up = alignment_matrix[i-1][j] + score.gap
-            diag = alignment_matrix[i-1][j-1] + score.checkMatchedSequences(sequence_a[i-1],sequence_b[j-1])
-            alignment_matrix[i][j] = max(left,up,diag)
-            if alignment_matrix[i][j] == diag:
+    for i in range(1, len(sequence_a) + 1):
+        for j in range(1, len(sequence_b) + 1):
+            left_value = alignment_matrix[i][j-1] + score.gap
+            top_value = alignment_matrix[i-1][j] + score.gap
+            diagonal_value = alignment_matrix[i-1][j-1] + score.checkMatchedSequences(sequence_a[i-1],sequence_b[j-1])
+            alignment_matrix[i][j] = max(left_value, top_value, diagonal_value)
+            if alignment_matrix[i][j] == diagonal_value:
                 traceBack[i][j] = 'DIAGONAL'
-            elif alignment_matrix[i][j] == up:
+            elif alignment_matrix[i][j] == top_value:
                 traceBack[i][j] = 'TOP'
-            elif alignment_matrix[i][j] == left:
+            elif alignment_matrix[i][j] == left_value:
                 traceBack[i][j] = 'LEFT'
             else:
-                traceBack[i][j] = 'DIAGONAL'
+                traceBack[i][j] = 'COMPLETED'
     return traceBack
 
 def getGlobalSequenceAlignments(sequence_a, sequence_b, traceBack):
-	rowOutput = []
-	colOutput = []
-	i = len(sequence_a)
-	j = len(sequence_b)
-	while i > 0 or j > 0:
-		if traceBack[i][j] == 'DIAGONAL':
-			rowOutput.append(sequence_a[i-1])
-			colOutput.append(sequence_b[j-1])
-			i -= 1
-			j -= 1
-		elif traceBack[i][j] == 'LEFT':
-			rowOutput.append('-')
-			colOutput.append(sequence_b[j-1])
-			j -= 1
-		elif traceBack[i][j] == 'TOP':
-			rowOutput.append(sequence_a[i-1])
-			colOutput.append('-')
-			i -= 1
-		elif traceBack[i][j] == 'DONE':
-			break
-	return rowOutput,colOutput
+    rowOutput = []
+    colOutput = []
+    length_sequence_a = len(sequence_a)
+    length_sequence_b = len(sequence_b)
+    while length_sequence_a > 0 or length_sequence_b > 0:
+        if traceBack[length_sequence_a][length_sequence_b] == 'DIAGONAL':
+            rowOutput.append(sequence_a[length_sequence_a-1])
+            colOutput.append(sequence_b[length_sequence_b-1])
+            length_sequence_a -= 1
+            length_sequence_b -= 1
+        elif traceBack[length_sequence_a][length_sequence_b] == 'TOP':
+            rowOutput.append(sequence_a[length_sequence_a-1])
+            colOutput.append('-')
+            length_sequence_a -= 1
+        elif traceBack[length_sequence_a][length_sequence_b] == 'LEFT':
+            rowOutput.append('-')
+            colOutput.append(sequence_b[length_sequence_b-1])
+            length_sequence_b -= 1
+        elif traceBack[length_sequence_a][length_sequence_b] == 'COMPLETED':
+            break
+    return rowOutput, colOutput
 
 def printSequence(sequence):
     output_string = ""
@@ -134,9 +134,9 @@ def main(argv):
     else:
         score = ScoreSchemeParams()
     
-    traceBack = calculateGlobalAlignment(sequence_A, sequence_B, score)
+    traceBackMatrix = calculateGlobalAlignment(sequence_A, sequence_B, score)
 
-    alignment_a, alignment_b = getGlobalSequenceAlignments(sequence_A, sequence_B, traceBack)
+    alignment_a, alignment_b = getGlobalSequenceAlignments(sequence_A, sequence_B, traceBackMatrix)
 
     print(printSequence(alignment_b))
     print(printSequence(alignment_a))

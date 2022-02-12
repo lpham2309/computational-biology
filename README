@@ -1,0 +1,6 @@
+Things to note:
+- Note that match_value, mismatch_value and gap_value or optional. If not provided, default is M=4, m=-2, g=-2
+- output_file_name parameter is optional. If not, the program should print sequence string in the console
+
+Steps to run:
+- Run python3 align.py <match_value> <mismatch_value> <gap_value> < <input_file_name> > <output_file_name>
