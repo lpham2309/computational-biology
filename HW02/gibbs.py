@@ -36,7 +36,7 @@ class GibbSampling():
         '''
 
         if len(last_sequences) > 0:
-            random_sequence = choice([sequences[i] for i in range(0,len(sequences)) if sequences[i] not in last_sequences])
+            random_sequence = choice([sequences[i] for i in range(len(sequences)) if sequences[i] not in last_sequences])
             removed_seq = sequences[sequences.index(random_sequence)]
             sequences.remove(removed_seq)
         else:
@@ -103,15 +103,16 @@ def parse_string_inputs():
     A method to parse input data
     '''
     curr_input = []
+    input_row = ''
     for line in sys.stdin:
-        row = ''
         if ">" in line:
-            row = ''
+            curr_input.append(input_row)
+            input_row = ''
         else:
-            row += line.replace("\n", "")
-            curr_input.append(row)
-    return curr_input
-
+            row = line.replace("\n", "")
+            input_row += row
+    
+    return curr_input[1:]
 def main(argv):
     '''
     Proceed calculating the best score for PSSM
@@ -128,7 +129,7 @@ def main(argv):
 
     last_picked_sequence = []
     
-    # Assume we have 6 sequences with same length, randomize a starting position
+    # Assume we have n-sequences with same length, randomize a starting position
     initial_site = [random.randrange(0, 10, 1) for sequence in sequence_inputs]
 
     parsed_sequence_inputs = gibb_sampling.create_msa_with_motif(sequence_inputs, initial_site)
@@ -142,6 +143,6 @@ def main(argv):
         # We want to have an ability to keep track of all previously picked s*
         last_picked_sequence.append(removed_sequence)
         best_score = gibb_sampling.get_highest_scoring_n_mers(removed_sequence, propensity_matrix)
-        print("Best Score: ", best_score)    
+        print(best_score)
 if __name__=='__main__':
     main(sys.argv)
