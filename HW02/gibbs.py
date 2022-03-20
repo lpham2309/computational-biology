@@ -85,12 +85,14 @@ class GibbSampling():
         '''
         subsequence_scores = dict()
         for i in range(0, len(removed_sequence)-self.motif):
-            curr_sum = 0
+            curr_prob = 1
             section = removed_sequence[i: i + self.motif]
             for idx, residue in enumerate(section):
+                # We want to re-map the input array to correspond with the residue type into a dictionary
                 propensity_to_residue_dict = dict(zip(self.residues, propensity_matrix[idx]))
-                curr_sum += propensity_to_residue_dict[residue]
-            subsequence_scores[section] = curr_sum
+                curr_prob *= propensity_to_residue_dict[residue]
+            subsequence_scores[section] = curr_prob
+
         best_subsequence = max(subsequence_scores, key=subsequence_scores.get)
         best_score = subsequence_scores[best_subsequence]
 
@@ -132,17 +134,28 @@ def main(argv):
     # Assume we have n-sequences with same length, randomize a starting position
     initial_site = [random.randrange(0, 10, 1) for sequence in sequence_inputs]
 
+    last_s_sequence = ''
+    last_best_score = 0.0
+
+    if last_s_sequence != '' and last_s_sequence in sequence_inputs:
+        last_sequence_index = sequence_inputs.index(last_s_sequence)
+        initial_site[last_sequence_index] = int(last_best_score)
+
     parsed_sequence_inputs = gibb_sampling.create_msa_with_motif(sequence_inputs, initial_site)
     frequency_matrix = gibb_sampling.create_frequency_matrix(parsed_sequence_inputs)
     
     propensity_matrix = gibb_sampling.create_propensity_matrix(frequency_matrix)
-    
+
     while len(sequence_inputs) > 0:
         # Pick a s* to remove
         removed_sequence = gibb_sampling.random_remove_sequence_star(sequence_inputs, last_picked_sequence)
+        last_s_sequence = removed_sequence
+
         # We want to have an ability to keep track of all previously picked s*
         last_picked_sequence.append(removed_sequence)
         best_score = gibb_sampling.get_highest_scoring_n_mers(removed_sequence, propensity_matrix)
+
+        last_best_score = best_score
         print(best_score)
 if __name__=='__main__':
     main(sys.argv)
