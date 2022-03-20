@@ -1,63 +1,81 @@
 from operator import itemgetter
 import sys
+import numpy as np
 
+class Node():
+    def __init__(self, marker=False, is_branch=False, label='', num_of_visits=1, outgoing_edges=[]):
+        self.marker = marker
+        self.is_branch = is_branch
+        self.label = label
+        self.num_of_visits = num_of_visits
+        self.outgoing_edges = outgoing_edges
 class Bruijn():
-    def __init__(self, k=31):
+    def __init__(self, k=31, graph_data = {}):
         self.k = k
+        self.graph_data = graph_data
     
-    def filter_non_repeated_k_mers(self, sequence_inputs):
+    def filter_non_repeated_k_mers(self, sequence):
+        res = []
+        for i in range(0, len(sequence)-self.k+1):
+            res.append(Node(label=sequence[i:self.k+i]))
+        return res
+    
+    def write_to_file(self, sequence_inputs):
         k_mers_count = {}
-        list_of_k_mers = []
-        good_read_sequence = set()
+        good_read_sequence = []
+        list_of_k_mers = None
         for sequence in sequence_inputs:
-            print(sequence)
-            for i in range(0, len(sequence)-self.k+1):
-                list_of_k_mers.append(sequence[i:self.k+i])
-        print(1)
+            list_of_k_mers = self.filter_non_repeated_k_mers(sequence)
+
         for subseq in list_of_k_mers:
             if subseq not in k_mers_count:
                 k_mers_count[subseq] = 1
             else:
                 k_mers_count[subseq] += 1
         
-        print(2)
         print(k_mers_count)
+        # for k, v in list(k_mers_count.items()):
+        #     if k_mers_count[k] < 2:
+        #         del k_mers_count[k]
+        for subseq in k_mers_count:
+            for seq in sequence_inputs:
+                if k_mers_count[subseq] >= 2 and subseq in sequence_inputs:
+                    good_read_sequence.append(seq+"\n")
 
-        for k, v in list(k_mers_count.items()):
-            print(k_mers_count[k])
-            if k_mers_count[k] < 2:
-                del k_mers_count[k]
-
-        print('Length = ', len(k_mers_count))
-        
-        for sequence in sequence_inputs:
-            for subseq in k_mers_count:
-                if k_mers_count[subseq] == 1:
-                    continue
-                elif k_mers_count[subseq] > 1 and subseq in sequence:
-                    good_read_sequence.add(sequence+"\n")
-        print(good_read_sequence)
-        return good_read_sequence
-
-    def write_to_file(self, sequence):
         with open('good_reads', 'w') as good_reads:
-            good_reads.writelines(list(sequence))
+            good_reads.writelines(list(good_read_sequence))
             good_reads.close()
 
-    def debruijnize(self, reads):
-        nodes = set()
-        not_starts = set()
-        edges = []
-        for r in reads:
-            r1 = r[:-1]
-            r2 = r[1:]
-            nodes.add(r1)
-            nodes.add(r2)
-            edges.append((r1,r2))
-            not_starts.add(r2)
-        return (nodes,edges,list(nodes-not_starts))
+    def construct_deBruijn_graph(self, node_instances, all_nodes, all_edges, not_starting_node):
+
+        # for curr_node in node_instances:
+        #     last_node = curr_node.label[:-1]
+        #     surrounding_node = curr_node.label[1:]
+        #     all_nodes.add(last_node)
+        #     all_nodes.add(surrounding_node)
+        #     all_edges.append((last_node,surrounding_node))
+
+        #     not_starting_node.add(surrounding_node)
+        # return (all_nodes,all_edges,list(all_nodes-not_starting_node))
+
+
+        for index, node in enumerate(node_instances):
+            if node not in self.graph_data:
+                self.graph_data[node] = Node(label=node)
+            else:
+                self.graph_data[node].num_of_visits += 1
+                self.graph_data[node].marker = True
+                self.is_branch = True
+                if index + 1 < len(node_instances):
+                    self.graph_data[node].outgoing_edges.append(node_instances[index+1])
     
+    def filter_graph_by_one_occurence(self):
+        for key, data in self.graph_data.items():
+            if data.num_of_visits < 2:
+                del self.graph_data[key]
+        
     def make_node_edge_map(self, edges):
+        # print("Edges: ", edges)
         node_edge_map = {}
         for e in edges:
             n = e[0]
@@ -86,7 +104,7 @@ class Bruijn():
                     break
                 previous = next
             # completed one trail
-            print(trail)
+            # print(trail)
             index = result_trail.index(start)
             result_trail = result_trail[0:index+1] + trail + result_trail[index+1:len(result_trail)]
             # choose new start
@@ -139,23 +157,37 @@ def main(argv):
         k_mers= itemgetter(1)(argv)
         bruijn_graph = Bruijn(k=int(k_mers))
     else:
-        bruijn_graph = Bruijn()
+        bruijn_graph = Bruijn(k=5)
     
     sequence_inputs = parse_string_inputs()
 
-    
-    reads = bruijn_graph.filter_non_repeated_k_mers(sequence_inputs)
-    a = bruijn_graph.write_to_file(reads)
-    # G = bruijn_graph.debruijnize(reads)
-    # v = bruibjn_graph.visualize_debruijn(G)
-    # print(v)
-    # m = bruijn_graph.make_node_edge_map(G[1])
-    # start = G[2][0] if (len(G[2]) > 0) else G[0][0]
-    # t = bruijn_graph.eulerian_trail(m,start)
-    # a = bruijn_graph.assemble_trail(t)
+    all_nodes = None
+    starting_node = None
+    all_edges = None
+
+    total_nodes = set()
+    total_not_starting_node = set()
+    total_all_edges = []
+
+    labeled_nodes = []
+
+
+    for sequence in sequence_inputs:
+        labeled_nodes += bruijn_graph.filter_non_repeated_k_mers(sequence)
+        bruijn_graph.construct_deBruijn_graph(bruijn_graph.graph_data, labeled_nodes, total_nodes, total_all_edges, total_not_starting_node)
+
+        print(starting_node)
+    # bruijn_graph.count_repeated_nodes(labeled_nodes, total_nodes)
+        # m = bruijn_graph.make_node_edge_map(graph_nodes[1])
+        # graph_nodes = list(graph_nodes)
+        # start = graph_nodes[2][0] if (len(graph_nodes[2]) > 0) else graph_nodes[0][0]
+        # t = bruijn_graph.eulerian_trail(m,start)
+        # print(t)
+        # a = bruijn_graph.assemble_trail(t)
+        # print(a)
 
     
-
+    bruijn_graph.filter_graph_by_one_occurence()
 
 if __name__=='__main__':
     main(sys.argv)
