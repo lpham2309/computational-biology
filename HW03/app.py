@@ -10,22 +10,20 @@ class Node():
                  visited=False,
                  is_branch=False,
                  label='',
-                 num_of_visits=1,
-                 outgoing_edges=[],
-                 incoming_edges=[]):
+                 num_of_visits=1):
         self.visited = visited
         self.is_branch = is_branch
         self.label = label
         self.num_of_visits = num_of_visits
-        self.outgoing_edges = outgoing_edges
-        self.incoming_edges = incoming_edges
+        self.outgoing_edges = []
+        self.incoming_edges = []
 
 
 class Bruijn():
 
-    def __init__(self, k=31, graph_data=defaultdict(Node)):
+    def __init__(self, k=31):
         self.k = k
-        self.graph_data = graph_data
+        self.graph_data = {}
 
     def filter_non_repeated_k_mers(self, sequence):
         res = []
@@ -36,18 +34,19 @@ class Bruijn():
     def construct_deBruijn_graph(self, node_instances):
         for index, node in enumerate(node_instances):
             graph = self.graph_data
+            curr_node = None
             if node not in graph:
-                graph[node].label = node
-            else:
+                graph[node] = Node(label=node)
+                curr_node = graph[node]
+            elif node in graph:
                 curr_node = graph[node]
                 curr_node.num_of_visits += 1
-                if index - 1 >= 0:
-                    curr_node.incoming_edges.append(node_instances[index - 1])
-                if index + 1 < len(node_instances):
-                    curr_node.outgoing_edges.append(node_instances[index + 1])
                 self.is_branch = len(curr_node.incoming_edges) > 1 or len(
                     curr_node.outgoing_edges) > 1
-        print(self.graph_data)
+            if index - 1 >= 0:
+                curr_node.incoming_edges.append(node_instances[index - 1])
+            if index + 1 < len(node_instances):
+                curr_node.outgoing_edges.append(node_instances[index + 1])
 
     def filter_graph_by_one_occurence(self):
         for key, data in self.graph_data.items():
@@ -63,11 +62,8 @@ class Bruijn():
         return result
 
     def iterate_helper(self, curr_node: Node, result: str) -> str:
-        # print("Processing label: ", curr_node.label)
         # validate curr_node if it's visited or is a branching node
-        if curr_node.visited:
-            return result
-        if curr_node.is_branch:
+        if curr_node.visited or curr_node.is_branch:
             return result
 
         incoming_edges = curr_node.incoming_edges
@@ -78,20 +74,25 @@ class Bruijn():
 
         # recursively iterate through all incoming + outgoing node
         incoming_path, outgoing_path = '', ''
-        # print("going to incoming edge: ", incoming_edges)
         for edge in incoming_edges:
             incoming_node = self.graph_data[edge]
             incoming_path = self.iterate_helper(incoming_node, result)
+            # print(edge)
+            # print('incoming_path', incoming_path)
         for edge in outgoing_edges:
             outgoing_node = self.graph_data[edge]
             outgoing_path = self.iterate_helper(outgoing_node, result)
+            # print('outgoing_path', outgoing_path)
+        # print('return values', incoming_path + curr_node.label + outgoing_path)
         return incoming_path + curr_node.label + outgoing_path
 
     def iterate_graph(self):
         substrings = self.graph_data.keys()
         path = ''
         for substring in substrings:
+            print(substring)
             substringGraphNode = self.graph_data[substring]
+            print(substringGraphNode.incoming_edges)
             path = self.iterate_helper(substringGraphNode, '')
         print(path)
 
@@ -118,19 +119,12 @@ def main(argv):
 
     sequence_inputs = parse_string_inputs()
 
-    all_nodes = None
-    starting_node = None
-    all_edges = None
-
-    total_nodes = set()
-    total_not_starting_node = set()
-    total_all_edges = []
-
     labeled_nodes = []
 
     for sequence in sequence_inputs:
         labeled_nodes += bruijn_graph.filter_non_repeated_k_mers(sequence)
         bruijn_graph.construct_deBruijn_graph(labeled_nodes)
+    # print(bruijn_graph.graph_data["Once_"].incoming_edges)
     bruijn_graph.iterate_graph()
 
     # bruijn_graph.count_repeated_nodes(labeled_nodes, total_nodes)
